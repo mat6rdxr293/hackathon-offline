@@ -18,3 +18,6 @@ yarn-error.log*
 
 # Local IDE and agent artifacts
 .claude/
+
+# TypeScript incremental metadata
+*.tsbuildinfo
