@@ -78,8 +78,6 @@ const isServicePayloadEcho = (value: string): boolean => {
 };
 
 export class VoiceController {
-  private static settingsTabOpened = false;
-
   private locale: AppLocale = 'ru';
   private active = false;
   private mediaRecorder: MediaRecorder | null = null;
@@ -206,20 +204,6 @@ export class VoiceController {
     this.callbacks.onError(
       `Microphone access is denied. Allow access in ${this.getMicrophoneSettingsUrl()} and Windows microphone privacy settings, then retry.`,
     );
-    this.openMicrophoneSettingsTabOnce();
-  }
-
-  private openMicrophoneSettingsTabOnce(): void {
-    if (VoiceController.settingsTabOpened || typeof chrome === 'undefined' || !chrome.tabs?.create) {
-      return;
-    }
-
-    VoiceController.settingsTabOpened = true;
-    try {
-      chrome.tabs.create({ url: this.getMicrophoneSettingsUrl() });
-    } catch {
-      // Ignore settings tab open failures.
-    }
   }
 
   stop(): void {
