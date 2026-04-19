@@ -15,6 +15,11 @@ const DUPLICATE_TRANSCRIPT_WINDOW_MS = 20_000;
 
 // Keep prompt minimal so STT does not echo a long instruction template.
 const WHISPER_PROMPT = 'Transcribe only what the user says.';
+const MIC_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+};
 
 const TEMPLATE_ECHO_MARKERS = [
   'медицинская система',
@@ -73,6 +78,9 @@ const isServicePayloadEcho = (value: string): boolean => {
 };
 
 export class VoiceController {
+  private static permissionWarmupStarted = false;
+  private static permissionWarmupPromise: Promise<void> | null = null;
+
   private locale: AppLocale = 'ru';
   private active = false;
   private mediaRecorder: MediaRecorder | null = null;
@@ -89,7 +97,18 @@ export class VoiceController {
   constructor(private readonly callbacks: VoiceCallbacks) {}
 
   initialize(): void {
-    // no-op: setup happens lazily in start()
+    if (VoiceController.permissionWarmupStarted || !navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+
+    VoiceController.permissionWarmupStarted = true;
+    VoiceController.permissionWarmupPromise = (async () => {
+      const warmupStream = await this.requestMicrophoneAccess(false);
+      warmupStream?.getTracks().forEach((track) => track.stop());
+    })()
+      .finally(() => {
+        VoiceController.permissionWarmupPromise = null;
+      });
   }
 
   setLocale(locale: AppLocale): void {
@@ -107,23 +126,12 @@ export class VoiceController {
       return;
     }
 
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-    } catch (err) {
-      const name = err instanceof DOMException ? err.name : '';
-      const msg =
-        name === 'NotAllowedError' || name === 'PermissionDeniedError'
-          ? 'Microphone access is denied. Please allow access in the browser address bar.'
-          : name === 'NotFoundError'
-            ? 'Microphone not found. Connect a microphone and try again.'
-            : `Microphone error: ${err instanceof Error ? err.message : String(err)}`;
-      this.callbacks.onError(msg);
+    if (VoiceController.permissionWarmupPromise) {
+      await VoiceController.permissionWarmupPromise;
+    }
+
+    this.stream = await this.requestMicrophoneAccess(true);
+    if (!this.stream) {
       this.active = false;
       return;
     }
@@ -162,6 +170,24 @@ export class VoiceController {
     };
     this.mediaRecorder.onstop = () => void this.transcribe();
     this.mediaRecorder.start(200);
+  }
+
+  private async requestMicrophoneAccess(reportError: boolean): Promise<MediaStream | null> {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: MIC_CONSTRAINTS });
+    } catch (err) {
+      if (reportError) {
+        const name = err instanceof DOMException ? err.name : '';
+        const msg =
+          name === 'NotAllowedError' || name === 'PermissionDeniedError'
+            ? 'Microphone access is denied. Please allow access in the browser address bar.'
+            : name === 'NotFoundError'
+              ? 'Microphone not found. Connect a microphone and try again.'
+              : `Microphone error: ${err instanceof Error ? err.message : String(err)}`;
+        this.callbacks.onError(msg);
+      }
+      return null;
+    }
   }
 
   stop(): void {
