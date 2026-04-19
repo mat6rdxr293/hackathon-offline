@@ -78,8 +78,7 @@ const isServicePayloadEcho = (value: string): boolean => {
 };
 
 export class VoiceController {
-  private static permissionWarmupStarted = false;
-  private static permissionWarmupPromise: Promise<void> | null = null;
+  private static settingsTabOpened = false;
 
   private locale: AppLocale = 'ru';
   private active = false;
@@ -97,18 +96,7 @@ export class VoiceController {
   constructor(private readonly callbacks: VoiceCallbacks) {}
 
   initialize(): void {
-    if (VoiceController.permissionWarmupStarted || !navigator.mediaDevices?.getUserMedia) {
-      return;
-    }
-
-    VoiceController.permissionWarmupStarted = true;
-    VoiceController.permissionWarmupPromise = (async () => {
-      const warmupStream = await this.requestMicrophoneAccess(false);
-      warmupStream?.getTracks().forEach((track) => track.stop());
-    })()
-      .finally(() => {
-        VoiceController.permissionWarmupPromise = null;
-      });
+    // Keep lazy setup: microphone permission is requested only from user gesture in start().
   }
 
   setLocale(locale: AppLocale): void {
@@ -126,8 +114,11 @@ export class VoiceController {
       return;
     }
 
-    if (VoiceController.permissionWarmupPromise) {
-      await VoiceController.permissionWarmupPromise;
+    const permissionState = await this.getMicrophonePermissionState();
+    if (permissionState === 'denied') {
+      this.handleMicrophoneDenied();
+      this.active = false;
+      return;
     }
 
     this.stream = await this.requestMicrophoneAccess(true);
@@ -178,15 +169,56 @@ export class VoiceController {
     } catch (err) {
       if (reportError) {
         const name = err instanceof DOMException ? err.name : '';
-        const msg =
-          name === 'NotAllowedError' || name === 'PermissionDeniedError'
-            ? 'Microphone access is denied. Please allow access in the browser address bar.'
-            : name === 'NotFoundError'
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+          this.handleMicrophoneDenied();
+        } else {
+          const msg =
+            name === 'NotFoundError'
               ? 'Microphone not found. Connect a microphone and try again.'
               : `Microphone error: ${err instanceof Error ? err.message : String(err)}`;
-        this.callbacks.onError(msg);
+          this.callbacks.onError(msg);
+        }
       }
       return null;
+    }
+  }
+
+  private async getMicrophonePermissionState(): Promise<PermissionState | null> {
+    if (!navigator.permissions?.query) {
+      return null;
+    }
+
+    try {
+      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      return status.state;
+    } catch {
+      return null;
+    }
+  }
+
+  private getMicrophoneSettingsUrl(): string {
+    return navigator.userAgent.includes('Edg/')
+      ? 'edge://settings/content/microphone'
+      : 'chrome://settings/content/microphone';
+  }
+
+  private handleMicrophoneDenied(): void {
+    this.callbacks.onError(
+      `Microphone access is denied. Allow access in ${this.getMicrophoneSettingsUrl()} and Windows microphone privacy settings, then retry.`,
+    );
+    this.openMicrophoneSettingsTabOnce();
+  }
+
+  private openMicrophoneSettingsTabOnce(): void {
+    if (VoiceController.settingsTabOpened || typeof chrome === 'undefined' || !chrome.tabs?.create) {
+      return;
+    }
+
+    VoiceController.settingsTabOpened = true;
+    try {
+      chrome.tabs.create({ url: this.getMicrophoneSettingsUrl() });
+    } catch {
+      // Ignore settings tab open failures.
     }
   }
 
