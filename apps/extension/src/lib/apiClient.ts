@@ -22,6 +22,74 @@ import { OPENAI_API_KEY, OPENAI_TIMEOUT_MS } from '../constants/api';
 
 const GPT_MODEL = 'gpt-4o';
 
+export type MedicalDocumentExtractedData = {
+  diagnoses: string[];
+  complaints: string[];
+  anamnesis: string;
+  labFindings: string[];
+  physicianConclusions: string[];
+  assignments: string[];
+  hospitalizationDate: string | null;
+  dischargeDate: string | null;
+  summary: string;
+  warnings: string[];
+};
+
+export type MedicalDocumentAnalysis = {
+  extracted: MedicalDocumentExtractedData;
+  contextForPrompt: string;
+};
+
+const normalizeList = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0)
+    .slice(0, 20);
+};
+
+const normalizeTextField = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+const normalizeDateField = (value: unknown): string | null => {
+  const text = normalizeTextField(value);
+  return text || null;
+};
+
+const buildDocumentSummary = (data: Omit<MedicalDocumentExtractedData, 'summary' | 'warnings'>): string => {
+  const parts: string[] = [];
+  if (data.diagnoses.length) parts.push(`Диагнозы: ${data.diagnoses.join('; ')}`);
+  if (data.complaints.length) parts.push(`Жалобы: ${data.complaints.join('; ')}`);
+  if (data.anamnesis) parts.push(`Анамнез: ${data.anamnesis}`);
+  if (data.labFindings.length) parts.push(`Лабораторные показатели: ${data.labFindings.join('; ')}`);
+  if (data.physicianConclusions.length) parts.push(`Заключения врачей: ${data.physicianConclusions.join('; ')}`);
+  if (data.assignments.length) parts.push(`Назначения: ${data.assignments.join('; ')}`);
+  if (data.hospitalizationDate || data.dischargeDate) {
+    parts.push(
+      `Даты: госпитализация ${data.hospitalizationDate ?? 'не указана'}, выписка ${data.dischargeDate ?? 'не указана'}`,
+    );
+  }
+
+  if (!parts.length) {
+    return 'Ключевые медицинские данные из документа не извлечены уверенно.';
+  }
+
+  return parts.join('\n');
+};
+
+const buildDocumentPromptContext = (data: MedicalDocumentExtractedData): string => {
+  const chunks: string[] = ['КОНТЕКСТ ИЗ ЗАГРУЖЕННОГО ДОКУМЕНТА (проверено врачом):'];
+  if (data.diagnoses.length) chunks.push(`- Диагнозы: ${data.diagnoses.join('; ')}`);
+  if (data.complaints.length) chunks.push(`- Жалобы: ${data.complaints.join('; ')}`);
+  if (data.anamnesis) chunks.push(`- Анамнез: ${data.anamnesis}`);
+  if (data.labFindings.length) chunks.push(`- Лабораторные показатели: ${data.labFindings.join('; ')}`);
+  if (data.physicianConclusions.length) chunks.push(`- Заключения врачей: ${data.physicianConclusions.join('; ')}`);
+  if (data.assignments.length) chunks.push(`- Назначения: ${data.assignments.join('; ')}`);
+  if (data.hospitalizationDate) chunks.push(`- Дата госпитализации: ${data.hospitalizationDate}`);
+  if (data.dischargeDate) chunks.push(`- Дата выписки: ${data.dischargeDate}`);
+  if (data.summary) chunks.push(`- Краткое резюме: ${data.summary}`);
+  return chunks.join('\n');
+};
+
 const callGpt = async (
   systemPrompt: string,
   userMessage: string,
@@ -671,13 +739,80 @@ ${strictNoNeuroRehab ? '- STRICT: do NOT mention speech therapist, LFK, muscle t
     };
   },
 
+  analyzeMedicalDocument: async (rawText: string, locale: AppLocale): Promise<MedicalDocumentAnalysis> => {
+    const lang = locale === 'kk' ? 'Kazakh' : locale === 'en' ? 'English' : 'Russian';
+    const sourceText = rawText.replace(/\s+/g, ' ').trim();
+    const textForModel = sourceText.slice(0, 12_000);
+    const looksLikeScan = textForModel.length < 120;
+
+    const modelData = await callGpt(
+      `You are a clinical document extraction assistant.
+Extract only factual medical information from the provided text.
+Response language for generated summary: ${lang}.
+
+Return strict JSON with this shape:
+{
+  "diagnoses": ["..."],
+  "complaints": ["..."],
+  "anamnesis": "...",
+  "labFindings": ["..."],
+  "physicianConclusions": ["..."],
+  "assignments": ["..."],
+  "hospitalizationDate": "YYYY-MM-DD or original if unclear",
+  "dischargeDate": "YYYY-MM-DD or original if unclear",
+  "summary": "short clinical summary"
+}
+
+Rules:
+- Use only facts from source text.
+- Do not invent values.
+- Keep arrays concise and clinically relevant.
+- If field is missing: use empty array or empty string.`,
+      `Clinical document text:\n${textForModel}`,
+    ) as Record<string, unknown>;
+
+    const extractedBase = {
+      diagnoses: normalizeList(modelData.diagnoses),
+      complaints: normalizeList(modelData.complaints),
+      anamnesis: normalizeTextField(modelData.anamnesis),
+      labFindings: normalizeList(modelData.labFindings),
+      physicianConclusions: normalizeList(modelData.physicianConclusions),
+      assignments: normalizeList(modelData.assignments),
+      hospitalizationDate: normalizeDateField(modelData.hospitalizationDate),
+      dischargeDate: normalizeDateField(modelData.dischargeDate),
+    };
+
+    const summaryFromModel = normalizeTextField(modelData.summary);
+    const summary = summaryFromModel || buildDocumentSummary(extractedBase);
+    const warnings: string[] = [];
+
+    if (looksLikeScan) {
+      warnings.push('Похоже на скан/фото PDF: проверьте текст, возможны ошибки OCR.');
+    }
+    if (
+      !extractedBase.diagnoses.length &&
+      !extractedBase.labFindings.length &&
+      !extractedBase.physicianConclusions.length &&
+      !extractedBase.assignments.length
+    ) {
+      warnings.push('Структурированные медицинские поля извлечены с низкой полнотой.');
+    }
+
+    const extracted: MedicalDocumentExtractedData = {
+      ...extractedBase,
+      summary,
+      warnings,
+    };
+
+    return {
+      extracted,
+      contextForPrompt: buildDocumentPromptContext(extracted),
+    };
+  },
+
   analyzeFileContent: async (rawText: string, locale: AppLocale): Promise<string> => {
-    const lang = locale === 'kk' ? 'РєР°Р·Р°С…СЃРєРёР№' : locale === 'en' ? 'Р°РЅРіР»РёР№СЃРєРёР№' : 'СЂСѓСЃСЃРєРёР№';
-    const data = await callGpt(
-      `РўС‹ РјРµРґРёС†РёРЅСЃРєРёР№ Р°СЃСЃРёСЃС‚РµРЅС‚. РР· С‚РµРєСЃС‚Р° С„Р°Р№Р»Р° (Р°РЅР°Р»РёР·Р°, СЃРїСЂР°РІРєРё, РІС‹РїРёСЃРєРё) РёР·РІР»РµРєРё С‚РѕР»СЊРєРѕ РєР»РёРЅРёС‡РµСЃРєРё Р·РЅР°С‡РёРјСѓСЋ РёРЅС„РѕСЂРјР°С†РёСЋ РґР»СЏ Р·Р°РїРѕР»РЅРµРЅРёСЏ РјРµРґРёС†РёРЅСЃРєРѕР№ РґРѕРєСѓРјРµРЅС‚Р°С†РёРё. РћС„РѕСЂРјРё РєСЂР°С‚РєРёРј СЃС‚СЂСѓРєС‚СѓСЂРёСЂРѕРІР°РЅРЅС‹Рј СЂРµР·СЋРјРµ (РґРёР°РіРЅРѕР·, РїРѕРєР°Р·Р°С‚РµР»Рё, СЂРµРєРѕРјРµРЅРґР°С†РёРё, РґР°С‚С‹). РЇР·С‹Рє: ${lang}. Р’РµСЂРЅРё JSON: {"summary": "..."}`,
-      `РўРµРєСЃС‚ С„Р°Р№Р»Р°:\n${rawText.slice(0, 4000)}`,
-    ) as { summary?: string };
-    return data.summary?.trim() ?? rawText.slice(0, 800);
+    const analysis = await apiClient.analyzeMedicalDocument(rawText, locale);
+    return analysis.extracted.summary;
   },
 
   describePatient: async (
@@ -698,9 +833,13 @@ Response language: ${lang}.
 Rules:
 - Use only provided data. Do not invent diagnoses, test results, medications, or outcomes.
 - Mention: who the patient is, key diagnosis/problem, current status/findings, and current plan/recommendations (if present).
+- If command asks to analyze a document and includes "Контекст из документа", treat this block as verified source data and prioritize it.
+- Explicitly list important diseases/diagnoses first (including comorbidities, if present).
+- Include key complaints, critical labs, physician conclusions, assignments, and hospitalization/discharge dates if available.
+- Highlight potentially risky findings (e.g., high fever, severe pain, abnormal labs) only if they are explicitly present in source data.
 - If some sections are missing, say that data is not available.
-- Keep it concise and practical for a doctor handoff (5-9 sentences).
-- Avoid markdown and bullet points.
+- Keep it concise and practical for a doctor handoff.
+- Use plain text only, but you may structure with short numbered points (1., 2., 3.) for readability.
 
 Return strict JSON:
 {
@@ -716,4 +855,3 @@ Return strict JSON:
     return { summary };
   },
 };
-

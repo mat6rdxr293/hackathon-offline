@@ -53,11 +53,39 @@ const DESCRIBE_PATIENT_MARKERS = [
   ' кратко о пациент',
   ' сведения о пациент',
   ' информация о пациент',
+  ' проанализируй документ',
+  ' проанализируй выписк',
+  ' анализ документа',
+  ' анализ выписки',
+  ' разбор документа',
+  ' разбор выписки',
+  ' выдели болезни',
+  ' выдели диагнозы',
+  ' покажи важные болезни',
   ' tell me about patient',
   ' patient summary',
   ' patient overview',
+  ' analyze document',
+  ' analyse document',
+  ' document analysis',
   ' наукас туралы айт',
 ];
+const ANALYZE_DOCUMENT_MARKERS = [
+  ' проанализируй документ',
+  ' проанализируй выписк',
+  ' анализ документа',
+  ' анализ выписки',
+  ' разбор документа',
+  ' разбор выписки',
+  ' выдели болезни',
+  ' выдели диагнозы',
+  ' покажи важные болезни',
+  ' analyze document',
+  ' analyse document',
+  ' document analysis',
+];
+const ANALYZE_DOCUMENT_REGEX =
+  /(проанализ\w*\s+[^[]*документ|анализ\w*\s+[^[]*документ|разбор\w*\s+[^[]*документ|выдели\s+[^[]*(болезн|диагноз)|analy[sz]e\s+[^[]*document|document\s+analysis)/iu;
 const PROMPT_LEAK_MARKERS = [
   'ты классификатор',
   'ты медицинский секретарь',
@@ -752,7 +780,12 @@ const isGenerateAssignmentCommand = (text: string): boolean => {
 
 const isDescribePatientCommand = (text: string): boolean => {
   const normalized = ` ${text.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim()} `;
-  return DESCRIBE_PATIENT_MARKERS.some((marker) => normalized.includes(marker));
+  return DESCRIBE_PATIENT_MARKERS.some((marker) => normalized.includes(marker)) || ANALYZE_DOCUMENT_REGEX.test(normalized);
+};
+
+const isAnalyzeDocumentCommand = (text: string): boolean => {
+  const normalized = ` ${text.toLowerCase().normalize('NFKC').replace(/\s+/g, ' ').trim()} `;
+  return ANALYZE_DOCUMENT_MARKERS.some((marker) => normalized.includes(marker)) || ANALYZE_DOCUMENT_REGEX.test(normalized);
 };
 
 const planIntentExecution = (
@@ -1011,7 +1044,9 @@ export const handleDescribePatient = async (
     normalizedText: commandText,
     source: 'fallback',
   };
-  const actionTitle = 'Рассказ о пациенте';
+  const actionTitle = isAnalyzeDocumentCommand(commandText)
+    ? 'Анализ медицинского документа'
+    : 'Рассказ о пациенте';
 
   patchAgentState(tabId, {
     transcript: commandText,
@@ -1027,8 +1062,9 @@ export const handleDescribePatient = async (
     const domSnapshotResponse = await callContent<ContentExecutionResponse>(tabId, { type: 'CONTENT_SCAN_DOM' });
     const patientInfo = patientInfoResponse.patientInfo ?? {};
     const briefFields = extractPatientBriefFields(domSnapshotResponse.domSnapshot);
+    const hasDocumentContextInCommand = /контекст из документа|контекст из загруженного документа|document context/i.test(commandText);
 
-    if (Object.keys(patientInfo).length === 0 && briefFields.length === 0) {
+    if (Object.keys(patientInfo).length === 0 && briefFields.length === 0 && !hasDocumentContextInCommand) {
       throw new Error('Не удалось получить данные пациента с текущей страницы.');
     }
 

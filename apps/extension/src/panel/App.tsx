@@ -26,7 +26,7 @@ import {
   PATIENT_CARD_FLOW_STEPS,
   type PatientCardFlowAnswers,
 } from '../modules/workflow/patientCardFlow';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, type MedicalDocumentAnalysis } from '../lib/apiClient';
 import { useAgentStore } from '../store/agentStore';
 import type { BackgroundToUiMessage, PanelToBackgroundMessage } from '../types/messages';
 
@@ -79,6 +79,32 @@ const isNavigationVoiceCommand = (text: string): boolean => {
   return NAV_KEYWORDS.some((kw) => norm.includes(kw));
 };
 
+const DOCUMENT_CONTEXT_PATTERN =
+  /эпикриз|выписк|discharge|epicrisis|шығару|қорытынды|проанализ|анализ.*документ|разбор.*документ|analy[sz]e.*document|document analysis/u;
+
+const shouldAttachDocumentContext = (text: string): boolean =>
+  DOCUMENT_CONTEXT_PATTERN.test(text.toLowerCase().normalize('NFKC'));
+
+const extractTextFromUploadedFile = async (file: File): Promise<string> => {
+  if (file.type !== 'application/pdf') {
+    return file.text();
+  }
+
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const raw = Array.from(bytes).map((b) => String.fromCharCode(b)).join('');
+  const blocks = raw.match(/BT[\s\S]*?ET/g) ?? [];
+  const textFromPdfObjects = blocks
+    .flatMap((b) => (b.match(/\(([^)]+)\)\s*Tj/g) ?? []).map((s) => s.replace(/\(([^)]+)\)\s*Tj/, '$1')))
+    .join(' ');
+
+  if (textFromPdfObjects.trim()) {
+    return textFromPdfObjects;
+  }
+
+  return raw.replace(/[^\x20-\x7E\u0400-\u04FF]/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
+};
+
 export const App = () => {
   const { locale, setLocale, t } = useI18n();
   const [commandText, setCommandText] = useState('');
@@ -110,6 +136,10 @@ export const App = () => {
   const patientCardFlowRef = useRef<PatientCardFlowRuntimeState>(INITIAL_PATIENT_CARD_FLOW_STATE);
   const promptCaptureTimerRef = useRef<number | null>(null);
   const medVoiceHandlerRef = useRef<(text: string) => void>(() => undefined);
+  const [pendingFileAnalysis, setPendingFileAnalysis] = useState<{
+    fileName: string;
+    analysis: MedicalDocumentAnalysis;
+  } | null>(null);
 
   const clearPromptCaptureTimer = useCallback(() => {
     if (promptCaptureTimerRef.current !== null) {
@@ -125,7 +155,10 @@ export const App = () => {
   const submitCommand = useCallback(
     async (text: string, source: 'voice' | 'text' = 'text'): Promise<boolean> => {
       const fileCtx = useAgentStore.getState().uploadedFileContext;
-      const enriched = fileCtx ? `${text}\n[Контекст из файла: ${fileCtx}]` : text;
+      const enriched =
+        fileCtx && shouldAttachDocumentContext(text)
+          ? `${text}\n[Контекст из документа: ${fileCtx}]`
+          : text;
       const normalized = normalizePanelCommand(enriched);
       if (!normalized) return false;
 
@@ -343,26 +376,27 @@ export const App = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      let rawText = '';
-      if (file.type === 'application/pdf') {
-        const buffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        const raw = Array.from(bytes).map((b) => String.fromCharCode(b)).join('');
-        const blocks = raw.match(/BT[\s\S]*?ET/g) ?? [];
-        rawText = blocks
-          .flatMap((b) => (b.match(/\(([^)]+)\)\s*Tj/g) ?? []).map((s) => s.replace(/\(([^)]+)\)\s*Tj/, '$1')))
-          .join(' ');
-        if (!rawText.trim()) rawText = raw.replace(/[^\x20-\x7E\u0400-\u04FF]/g, ' ').replace(/\s+/g, ' ').slice(0, 3000);
-      } else {
-        rawText = await file.text();
-      }
-      const summary = await apiClient.analyzeFileContent(rawText, locale);
-      setFileContext(summary, file.name);
+      const rawText = await extractTextFromUploadedFile(file);
+      const analysis = await apiClient.analyzeMedicalDocument(rawText, locale);
+      setPendingFileAnalysis({ fileName: file.name, analysis });
+      // Keep file name in UI, but do not attach context until doctor confirms preview.
+      setFileContext(null, file.name);
     } catch (err) {
       pushError(err instanceof Error ? err.message : 'Ошибка загрузки файла');
     }
     e.target.value = '';
   }, [locale, pushError, setFileContext]);
+
+  const applyFileAnalysisContext = useCallback(() => {
+    if (!pendingFileAnalysis) return;
+    setFileContext(pendingFileAnalysis.analysis.contextForPrompt, pendingFileAnalysis.fileName);
+    setPendingFileAnalysis(null);
+  }, [pendingFileAnalysis, setFileContext]);
+
+  const clearFileContextAndPreview = useCallback(() => {
+    setPendingFileAnalysis(null);
+    setFileContext(null, null);
+  }, [setFileContext]);
 
   const cancelPendingVoiceDraft = useCallback(() => {
     setPendingVoiceDraft(null);
@@ -731,7 +765,7 @@ export const App = () => {
                 {uploadedFileName && (
                   <button
                     type="button"
-                    onClick={() => setFileContext(null, null)}
+                    onClick={clearFileContextAndPreview}
                     style={{
                       borderRadius: '50%',
                       padding: 2,
@@ -749,6 +783,85 @@ export const App = () => {
                   </button>
                 )}
               </div>
+              {uploadedFileContext && !pendingFileAnalysis && (
+                <p className="text-xs" style={{ color: '#36F4A4' }}>
+                  Контекст из документа подтвержден и будет использован для эпикриза и анализа документа.
+                </p>
+              )}
+              {pendingFileAnalysis && (
+                <div
+                  className="rounded-xl p-3"
+                  style={{
+                    background: 'rgba(14,165,233,0.06)',
+                    border: '1px solid rgba(14,165,233,0.24)',
+                  }}
+                >
+                  <p className="text-xs font-semibold mb-2" style={{ color: '#7DD3FC' }}>
+                    Превью извлеченных данных из файла: {pendingFileAnalysis.fileName}
+                  </p>
+                  <div className="space-y-1 text-xs" style={{ color: '#E4E4E7' }}>
+                    <p><span style={{ color: '#A1A1AA' }}>Диагнозы:</span> {pendingFileAnalysis.analysis.extracted.diagnoses.join('; ') || '—'}</p>
+                    <p><span style={{ color: '#A1A1AA' }}>Жалобы:</span> {pendingFileAnalysis.analysis.extracted.complaints.join('; ') || '—'}</p>
+                    <p><span style={{ color: '#A1A1AA' }}>Анамнез:</span> {pendingFileAnalysis.analysis.extracted.anamnesis || '—'}</p>
+                    <p><span style={{ color: '#A1A1AA' }}>Лабораторные показатели:</span> {pendingFileAnalysis.analysis.extracted.labFindings.join('; ') || '—'}</p>
+                    <p><span style={{ color: '#A1A1AA' }}>Заключения врачей:</span> {pendingFileAnalysis.analysis.extracted.physicianConclusions.join('; ') || '—'}</p>
+                    <p><span style={{ color: '#A1A1AA' }}>Назначения:</span> {pendingFileAnalysis.analysis.extracted.assignments.join('; ') || '—'}</p>
+                    <p>
+                      <span style={{ color: '#A1A1AA' }}>Даты:</span>{' '}
+                      госпитализация {pendingFileAnalysis.analysis.extracted.hospitalizationDate || '—'}, выписка {pendingFileAnalysis.analysis.extracted.dischargeDate || '—'}
+                    </p>
+                    <p><span style={{ color: '#A1A1AA' }}>Резюме:</span> {pendingFileAnalysis.analysis.extracted.summary || '—'}</p>
+                  </div>
+                  {pendingFileAnalysis.analysis.extracted.warnings.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {pendingFileAnalysis.analysis.extracted.warnings.map((warning) => (
+                        <p key={warning} className="text-xs" style={{ color: '#FCA5A5' }}>
+                          {warning}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs" style={{ color: '#A1A1AA' }}>
+                    Проверьте данные. Контекст будет применен только после подтверждения.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={applyFileAnalysisContext}
+                      className="text-xs font-semibold transition"
+                      style={{
+                        borderRadius: 9999,
+                        padding: '6px 14px',
+                        background: '#FFFFFF',
+                        color: '#000000',
+                        border: '2px solid transparent',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.88')}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    >
+                      Использовать в эпикризе
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearFileContextAndPreview}
+                      className="text-xs font-semibold transition"
+                      style={{
+                        borderRadius: 9999,
+                        padding: '6px 14px',
+                        background: 'transparent',
+                        color: '#A1A1AA',
+                        border: '1px solid #3F3F46',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      Не использовать
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </motion.section>

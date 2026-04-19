@@ -1,6 +1,6 @@
 ﻿import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Mic, Volume2, VolumeX } from 'lucide-react';
+import { FileText, Mic, Volume2, VolumeX, X } from 'lucide-react';
 
 import { useVoiceInput } from '../hooks/useVoiceInput';
 import { useWakeWord } from '../hooks/useWakeWord';
@@ -10,6 +10,7 @@ import { ttsController } from '../modules/tts/ttsController';
 import { normalizePanelCommand } from '../modules/parser/commandParser';
 import type { WorkflowNextStep } from '@hackathon/shared';
 import type { AgentViewState, BackgroundToUiMessage, PopupResponse, PopupStateSnapshot, PopupToBackgroundMessage } from '../types/messages';
+import { apiClient, type MedicalDocumentAnalysis } from '../lib/apiClient';
 import { ActiveTabStatus } from './components/ActiveTabStatus';
 import { PopupCommandForm } from './components/PopupCommandForm';
 import { PopupHeader } from './components/PopupHeader';
@@ -28,6 +29,31 @@ const sendPopupMessage = async (message: PopupToBackgroundMessage): Promise<Popu
 
 const BAR_HEIGHTS = [10, 18, 28, 16, 24, 12, 20, 30, 14, 18];
 const BAR_DELAYS  = [0, 0.1, 0.2, 0.05, 0.15, 0.25, 0.08, 0.18, 0.3, 0.12];
+const DOCUMENT_CONTEXT_PATTERN =
+  /эпикриз|выписк|discharge|epicrisis|шығару|қорытынды|проанализ|анализ.*документ|разбор.*документ|analy[sz]e.*document|document analysis/u;
+
+const shouldAttachDocumentContext = (text: string): boolean =>
+  DOCUMENT_CONTEXT_PATTERN.test(text.toLowerCase().normalize('NFKC'));
+
+const extractTextFromUploadedFile = async (file: File): Promise<string> => {
+  if (file.type !== 'application/pdf') {
+    return file.text();
+  }
+
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const raw = Array.from(bytes).map((b) => String.fromCharCode(b)).join('');
+  const blocks = raw.match(/BT[\s\S]*?ET/g) ?? [];
+  const textFromPdfObjects = blocks
+    .flatMap((b) => (b.match(/\(([^)]+)\)\s*Tj/g) ?? []).map((s) => s.replace(/\(([^)]+)\)\s*Tj/, '$1')))
+    .join(' ');
+
+  if (textFromPdfObjects.trim()) {
+    return textFromPdfObjects;
+  }
+
+  return raw.replace(/[^\x20-\x7E\u0400-\u04FF]/g, ' ').replace(/\s+/g, ' ').slice(0, 8000);
+};
 
 export const PopupApp = () => {
   const { locale, t } = useI18n();
@@ -36,6 +62,14 @@ export const PopupApp = () => {
   const [command, setCommand] = useState('');
   const [requestError, setRequestError] = useState<string | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [pendingFileAnalysis, setPendingFileAnalysis] = useState<{
+    fileName: string;
+    analysis: MedicalDocumentAnalysis;
+  } | null>(null);
+  const [approvedFileContext, setApprovedFileContext] = useState<{
+    fileName: string;
+    contextForPrompt: string;
+  } | null>(null);
   const prevStatusRef = useRef<string>('idle');
 
   const applyResponse = useCallback((response: PopupResponse) => {
@@ -45,11 +79,15 @@ export const PopupApp = () => {
   }, [t]);
 
   const runCommand = useCallback(async (text: string, source: 'voice' | 'text' | 'quick_action') => {
-    const normalized = normalizePanelCommand(text);
+    const enriched =
+      approvedFileContext && shouldAttachDocumentContext(text)
+        ? `${text}\n[Контекст из документа: ${approvedFileContext.contextForPrompt}]`
+        : text;
+    const normalized = normalizePanelCommand(enriched);
     if (!normalized) return;
     const response = await sendPopupMessage({ type: 'RUN_COMMAND', payload: { text: normalized, source } });
     applyResponse(response);
-  }, [applyResponse]);
+  }, [applyResponse, approvedFileContext]);
 
   const { status: voiceStatus, transcript: voiceTranscript, start, stop, cancel } = useVoiceInput(
     locale,
@@ -98,6 +136,37 @@ export const PopupApp = () => {
 
   const handleConfirmSuggestion = useCallback((action: WorkflowNextStep['nextRecommendedAction']) => {
     void sendPopupMessage({ type: 'POPUP_CONFIRM_SUGGESTION', payload: { action } });
+  }, []);
+
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const rawText = await extractTextFromUploadedFile(file);
+      const analysis = await apiClient.analyzeMedicalDocument(rawText, locale);
+      setPendingFileAnalysis({ fileName: file.name, analysis });
+      setApprovedFileContext(null);
+      setRequestError(null);
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : 'Ошибка загрузки файла');
+    }
+
+    e.target.value = '';
+  }, [locale]);
+
+  const applyFileAnalysisContext = useCallback(() => {
+    if (!pendingFileAnalysis) return;
+    setApprovedFileContext({
+      fileName: pendingFileAnalysis.fileName,
+      contextForPrompt: pendingFileAnalysis.analysis.contextForPrompt,
+    });
+    setPendingFileAnalysis(null);
+  }, [pendingFileAnalysis]);
+
+  const clearFileContextAndPreview = useCallback(() => {
+    setPendingFileAnalysis(null);
+    setApprovedFileContext(null);
   }, []);
 
   const disabledActions = useMemo(
@@ -335,6 +404,145 @@ export const PopupApp = () => {
               void runCommand(cmd, 'quick_action');
             }}
           />
+        </motion.div>
+
+        {/* Medical file upload + preview */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.2 }}
+          style={{
+            borderRadius: 12,
+            background: '#FFFFFF',
+            border: '1px solid #E8ECEF',
+            padding: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                borderRadius: 9999,
+                padding: '5px 10px',
+                border: '1px solid #D1FAE5',
+                background: '#F0FDF4',
+                color: '#065F46',
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <FileText size={12} />
+              {approvedFileContext?.fileName || pendingFileAnalysis?.fileName || 'Загрузить выписку/PDF'}
+              <input
+                type="file"
+                accept=".pdf,.txt,.md,.csv"
+                style={{ display: 'none' }}
+                onChange={(e) => { void handleFileUpload(e); }}
+              />
+            </label>
+
+            {(approvedFileContext || pendingFileAnalysis) && (
+              <button
+                type="button"
+                onClick={clearFileContextAndPreview}
+                title="Удалить файл"
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 9999,
+                  border: '1px solid #E2E8F0',
+                  background: '#FFFFFF',
+                  color: '#64748B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+
+          {approvedFileContext && !pendingFileAnalysis && (
+            <p style={{ fontSize: 10, color: '#059669' }}>
+              Контекст подтвержден. Будет применяться для эпикриза и анализа документа.
+            </p>
+          )}
+
+          {pendingFileAnalysis && (
+            <div
+              style={{
+                borderRadius: 10,
+                border: '1px solid #BFDBFE',
+                background: '#EFF6FF',
+                padding: 8,
+              }}
+            >
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#1D4ED8', marginBottom: 4 }}>
+                Превью: {pendingFileAnalysis.fileName}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: '#334155' }}>
+                <p><b>Диагнозы:</b> {pendingFileAnalysis.analysis.extracted.diagnoses.join('; ') || '—'}</p>
+                <p><b>Жалобы:</b> {pendingFileAnalysis.analysis.extracted.complaints.join('; ') || '—'}</p>
+                <p><b>Анамнез:</b> {pendingFileAnalysis.analysis.extracted.anamnesis || '—'}</p>
+                <p><b>Лабы:</b> {pendingFileAnalysis.analysis.extracted.labFindings.join('; ') || '—'}</p>
+                <p><b>Заключения:</b> {pendingFileAnalysis.analysis.extracted.physicianConclusions.join('; ') || '—'}</p>
+                <p><b>Назначения:</b> {pendingFileAnalysis.analysis.extracted.assignments.join('; ') || '—'}</p>
+                <p><b>Даты:</b> госпитализация {pendingFileAnalysis.analysis.extracted.hospitalizationDate || '—'}, выписка {pendingFileAnalysis.analysis.extracted.dischargeDate || '—'}</p>
+                <p><b>Резюме:</b> {pendingFileAnalysis.analysis.extracted.summary || '—'}</p>
+              </div>
+              {pendingFileAnalysis.analysis.extracted.warnings.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  {pendingFileAnalysis.analysis.extracted.warnings.map((warning) => (
+                    <p key={warning} style={{ fontSize: 10, color: '#B91C1C' }}>
+                      {warning}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={applyFileAnalysisContext}
+                  style={{
+                    borderRadius: 9999,
+                    padding: '4px 9px',
+                    border: '1px solid #A7F3D0',
+                    background: '#ECFDF5',
+                    color: '#047857',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Использовать
+                </button>
+                <button
+                  type="button"
+                  onClick={clearFileContextAndPreview}
+                  style={{
+                    borderRadius: 9999,
+                    padding: '4px 9px',
+                    border: '1px solid #E2E8F0',
+                    background: '#FFFFFF',
+                    color: '#64748B',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Не использовать
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Footer strip: wake word + Озвучка */}
