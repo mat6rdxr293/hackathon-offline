@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "types": ["chrome", "node"],
+    "lib": ["ES2022", "DOM"],
+    "composite": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "tailwind.config.ts", "postcss.config.cjs"],
+  "references": [{ "path": "../../packages/shared" }]
+}

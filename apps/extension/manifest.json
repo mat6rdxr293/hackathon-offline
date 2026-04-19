@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "MedFlow AI Agent",
+  "description": "External AI/RPA layer for local medical mock UI",
+  "version": "1.0.0",
+  "permissions": ["tabs", "scripting", "storage", "activeTab"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*", "https://*/*", "http://*/*", "file:///*"],
+  "action": {
+    "default_popup": "dist/popup.html"
+  },
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dist/content-script-loader.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/panel.html", "dist/panel.js", "dist/popup.html", "dist/popup.js", "dist/content.js", "dist/assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Обращение — ДӘУРЕНҚЫЗЫ ТОМИРИС - Dmed.Стационар</title>
+    <link rel="stylesheet" href="../assets/mock.css" />
+  </head>
+  <body data-page-type="primary_exam">
+
+    <div class="header">
+      <div class="dmed-logo">
+        <div class="dmed-logo-icon">✦</div>
+        <div><div class="dmed-logo-text">Damu.AI</div>
+        <div class="app-version">Browser AI-agent · v1.0</div></div>
+      </div>
+      <div class="user-block">
+        <div>
+          <div class="user-name">САРЕНОВА БОТАКОЗ МАКСАТОВНА</div>
+          <div class="user-position">Неврология детская (Невропатолог детский)</div>
+        </div>
+        <span class="caret-icon">▾</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="standalone-back">
+        <a href="./patient-card.html">← Карточка пациента</a>
+        <h1>Обращение / Медицинские записи</h1>
+        <span class="small-note">ДӘУРЕНҚЫЗЫ ТОМИРИС · 08.01.2014 · №565</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading" style="padding:12px 16px;">
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="form-group" style="margin:0;min-width:220px;">
+              <label for="ddlMedicalRecordType" style="margin-bottom:4px;">Тип записи</label>
+              <select id="ddlMedicalRecordType" class="form-control">
+                <option value="1">Осмотр врача приёмного покоя</option>
+                <option value="2">Первичный осмотр</option>
+                <option value="3">Плановый осмотр</option>
+                <option value="4">Итоговая запись</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;min-width:200px;">
+              <label for="dtpMedRecRegDate" style="margin-bottom:4px;">Дата и время осмотра</label>
+              <input id="dtpMedRecRegDate" class="form-control" type="datetime-local" value="2026-04-17T15:07" />
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-body" style="padding:20px;">
+
+          <div class="anamnesis-block">
+            <div class="anamnesis-block-title">1. Жалобы при поступлении</div>
+            <textarea id="complaints" name="complaints" data-field="complaints"
+                      class="form-control" style="min-height:80px;"
+                      placeholder="Опишите жалобы пациента при поступлении — боли, двигательные нарушения, судороги, задержка развития…"></textarea>
+          </div>
+
+          <div class="anamnesis-block">
+            <div class="anamnesis-block-title">2. Анамнез болезни</div>
+            <textarea id="anamnesis" name="anamnesis" data-field="anamnesis"
+                      class="form-control" style="min-height:100px;"
+                      placeholder="Когда впервые появились симптомы, как протекало заболевание, ранее проводимое лечение, результаты предыдущих обследований…"></textarea>
+          </div>
+
+          <div class="anamnesis-block">
+            <div class="anamnesis-block-title">3. Анамнез жизни</div>
+            <textarea id="notes" name="notes" data-field="notes"
+                      class="form-control" style="min-height:110px;"
+                      placeholder="Перинатальный анамнез (беременность, роды, период новорождённости), психомоторное развитие, перенесённые заболевания, прививочный статус, аллергологический анамнез…"></textarea>
+          </div>
+
+          <div class="anamnesis-block">
+            <div class="anamnesis-block-title">4. Объективный статус / Неврологический статус</div>
+            <textarea id="objectiveStatus" name="objectiveStatus" data-field="objectiveStatus"
+                      class="form-control" style="min-height:110px;"
+                      placeholder="Общее состояние, ЧСС, ЧДД, АД, температура. Неврологический статус: сознание, черепные нервы, мышечный тонус, рефлексы, координация, чувствительность…"></textarea>
+          </div>
+
+          <div class="anamnesis-block">
+            <div class="anamnesis-block-title">5. Рекомендации и назначения</div>
+            <textarea id="recommendations" name="recommendations" data-field="recommendations"
+                      class="form-control" style="min-height:90px;"
+                      placeholder="Медикаментозная терапия, ЛФК, массаж, психолог, физиотерапия, консультации специалистов, режим, диета…"></textarea>
+          </div>
+
+          <div class="d-flex gap-2 mt-3" style="flex-wrap:wrap;align-items:center;">
+            <button class="btn primary" data-action="save-form" data-toast-target="Обращение">Сохранить</button>
+            <button class="btn btn-export" data-action="generate-document">Сформировать итоговый лист</button>
+            <span id="save-note" class="small-note" style="align-self:center;"></span>
+          </div>
+
+          <div id="final-document" class="final-document" style="display:none;">
+            <div class="final-document-toolbar">
+              <span class="final-document-title">Итоговый лист обращения</span>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sm ghost" data-action="edit-document">Редактировать</button>
+                <button class="btn btn-sm primary" data-action="download-document-pdf">Скачать PDF</button>
+                <button class="btn btn-sm primary" onclick="window.print()">Печать / PDF</button>
+              </div>
+            </div>
+            <div id="final-document-body" class="final-document-body"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/vendor/html2pdf.bundle.min.js"></script>
+    <script src="../assets/mock.js"></script>
+  </body>
+</html>

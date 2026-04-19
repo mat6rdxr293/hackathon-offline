@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Назначения — ДӘУРЕНҚЫЗЫ ТОМИРИС - Dmed.Стационар</title>
+    <link rel="stylesheet" href="../assets/mock.css" />
+  </head>
+  <body data-page-type="procedures">
+
+    <div class="header">
+      <div class="dmed-logo">
+        <div class="dmed-logo-icon">✦</div>
+        <div><div class="dmed-logo-text">Damu.AI</div>
+        <div class="app-version">Browser AI-agent · v1.0</div></div>
+      </div>
+      <div class="user-block">
+        <div>
+          <div class="user-name">САРЕНОВА БОТАКОЗ МАКСАТОВНА</div>
+          <div class="user-position">Неврология детская</div>
+        </div>
+        <span class="caret-icon">▾</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="standalone-back">
+        <a href="./patient-card.html">← Карточка пациента</a>
+        <h1>Назначения</h1>
+        <span class="small-note">ДӘУРЕНҚЫЗЫ ТОМИРИС · №565</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-body" style="padding:0;">
+          <table>
+            <thead>
+              <tr>
+                <th>Услуга / Процедура</th>
+                <th>Специалист</th>
+                <th style="text-align:center;">Сеансов</th>
+                <th style="text-align:center;">Длит. (мин)</th>
+                <th>Статус</th>
+                <th>Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-procedure-id="proc-lfk" data-procedure-type="lfk"
+                  data-specialist-id="spec-lfk" data-sessions="6" data-duration="30">
+                <td data-col="title">ЛФК (лечебная физкультура)</td>
+                <td>Инструктор ЛФК</td>
+                <td style="text-align:center;">6</td>
+                <td style="text-align:center;">30</td>
+                <td data-col="status"><span class="status-pill status-planned">Запланировано</span></td>
+                <td><button class="btn success btn-sm" data-action="complete-service">Выполнено</button></td>
+              </tr>
+              <tr data-procedure-id="proc-massage" data-procedure-type="massage"
+                  data-specialist-id="spec-massage" data-sessions="6" data-duration="40">
+                <td data-col="title">Лечебный массаж</td>
+                <td>Массажист</td>
+                <td style="text-align:center;">6</td>
+                <td style="text-align:center;">40</td>
+                <td data-col="status"><span class="status-pill status-planned">Запланировано</span></td>
+                <td><button class="btn success btn-sm" data-action="complete-service">Выполнено</button></td>
+              </tr>
+              <tr data-procedure-id="proc-physio" data-procedure-type="physio"
+                  data-specialist-id="spec-physio" data-sessions="5" data-duration="30">
+                <td data-col="title">Физиотерапия</td>
+                <td>Физиотерапевт</td>
+                <td style="text-align:center;">5</td>
+                <td style="text-align:center;">30</td>
+                <td data-col="status"><span class="status-pill status-planned">Запланировано</span></td>
+                <td><button class="btn success btn-sm" data-action="complete-service">Выполнено</button></td>
+              </tr>
+              <tr data-procedure-id="proc-psych" data-procedure-type="psychology"
+                  data-specialist-id="spec-psych" data-sessions="5" data-duration="45">
+                <td data-col="title">Психолог (коррекционные занятия)</td>
+                <td>Психолог</td>
+                <td style="text-align:center;">5</td>
+                <td style="text-align:center;">45</td>
+                <td data-col="status"><span class="status-pill status-planned">Запланировано</span></td>
+                <td><button class="btn success btn-sm" data-action="complete-service">Выполнено</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Hidden specialist availability data for AI agent -->
+      <div style="display:none">
+        <span data-specialist-availability data-specialist-id="spec-lfk"    data-work-start="09:00" data-work-end="16:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-massage" data-work-start="09:00" data-work-end="17:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-physio"  data-work-start="10:00" data-work-end="18:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-psych"   data-work-start="09:00" data-work-end="17:00"></span>
+      </div>
+    </div>
+
+    <script src="../assets/mock.js"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "@hackathon/server",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.0.1",
+    "@hackathon/shared": "workspace:*",
+    "dayjs": "^1.11.13",
+    "fastify": "^5.6.0",
+    "uuid": "^11.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5"
+  }
+}

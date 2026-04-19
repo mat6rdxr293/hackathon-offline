@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Расписание процедур — ДӘУРЕНҚЫЗЫ ТОМИРИС - Dmed.Стационар</title>
+    <link rel="stylesheet" href="../assets/mock.css" />
+  </head>
+  <body data-page-type="schedule_block">
+
+    <div class="header">
+      <div class="dmed-logo">
+        <div class="dmed-logo-icon">✦</div>
+        <div><div class="dmed-logo-text">Damu.AI</div>
+        <div class="app-version">Browser AI-agent · v1.0</div></div>
+      </div>
+      <div class="user-block">
+        <div>
+          <div class="user-name">САРЕНОВА БОТАКОЗ МАКСАТОВНА</div>
+          <div class="user-position">Неврология детская</div>
+        </div>
+        <span class="caret-icon">▾</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="standalone-back">
+        <a href="./patient-card.html">← Карточка пациента</a>
+        <h1>Расписание процедур</h1>
+        <span class="small-note">9 рабочих дней · 14.04 — 25.04.2026</span>
+      </div>
+
+      <div style="display:none">
+        <span data-specialist-availability data-specialist-id="spec-lfk"    data-work-start="09:00" data-work-end="16:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-massage" data-work-start="09:00" data-work-end="17:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-physio"  data-work-start="10:00" data-work-end="18:00"></span>
+        <span data-specialist-availability data-specialist-id="spec-psych"   data-work-start="09:00" data-work-end="17:00"></span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading" style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:13px;font-weight:600;color:var(--c-text-2);">2 сеанса в день · 18 занятий</div>
+          <span id="schedule-done-count" class="schedule-progress-badge">0 / 18 выполнено</span>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <table id="schedule-grid" data-role="schedule-grid">
+            <thead>
+              <tr>
+                <th style="width:120px;">Дата</th>
+                <th style="width:70px;">Время</th>
+                <th>Процедура</th>
+                <th>Специалист</th>
+                <th style="width:90px;">Кабинет</th>
+                <th style="width:110px;text-align:center;">Выполнено</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">14.04 (вт)</td><td class="schedule-time">10:00</td><td data-col="title">ЛФК</td><td>Инструктор ЛФК</td><td>Каб. 204</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-1"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Лечебный массаж</td><td>Массажист</td><td>Каб. 108</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-2"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">15.04 (ср)</td><td class="schedule-time">10:00</td><td data-col="title">Физиотерапия</td><td>Физиотерапевт</td><td>Каб. 310</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-3"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Психолог</td><td>Психолог</td><td>Каб. 215</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-4"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">16.04 (чт)</td><td class="schedule-time">10:00</td><td data-col="title">ЛФК</td><td>Инструктор ЛФК</td><td>Каб. 204</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-5"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Лечебный массаж</td><td>Массажист</td><td>Каб. 108</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-6"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">17.04 (пт)</td><td class="schedule-time">10:00</td><td data-col="title">Физиотерапия</td><td>Физиотерапевт</td><td>Каб. 310</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-7"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Психолог</td><td>Психолог</td><td>Каб. 215</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-8"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">21.04 (пн)</td><td class="schedule-time">10:00</td><td data-col="title">ЛФК</td><td>Инструктор ЛФК</td><td>Каб. 204</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-9"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Лечебный массаж</td><td>Массажист</td><td>Каб. 108</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-10"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">22.04 (вт)</td><td class="schedule-time">10:00</td><td data-col="title">Физиотерапия</td><td>Физиотерапевт</td><td>Каб. 310</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-11"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Психолог</td><td>Психолог</td><td>Каб. 215</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-12"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">23.04 (ср)</td><td class="schedule-time">10:00</td><td data-col="title">ЛФК</td><td>Инструктор ЛФК</td><td>Каб. 204</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-13"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Лечебный массаж</td><td>Массажист</td><td>Каб. 108</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-14"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">24.04 (чт)</td><td class="schedule-time">10:00</td><td data-col="title">Физиотерапия</td><td>Физиотерапевт</td><td>Каб. 310</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-15"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Психолог</td><td>Психолог</td><td>Каб. 215</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-16"><span class="schedule-check-box"></span></label></td></tr>
+
+              <tr class="schedule-row"><td class="schedule-date-cell" rowspan="2">25.04 (пт)</td><td class="schedule-time">10:00</td><td data-col="title">ЛФК</td><td>Инструктор ЛФК</td><td>Каб. 204</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-17"><span class="schedule-check-box"></span></label></td></tr>
+              <tr class="schedule-row schedule-row-2"><td class="schedule-time">14:30</td><td data-col="title">Лечебный массаж</td><td>Массажист</td><td>Каб. 108</td><td class="schedule-check-cell"><label class="schedule-check-label"><input type="checkbox" class="schedule-check" data-schedule-id="s-18"><span class="schedule-check-box"></span></label></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script src="../assets/mock.js"></script>
+  </body>
+</html>

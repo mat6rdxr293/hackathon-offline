@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Дневниковые записи - Dmed.Стационар</title>
+    <link rel="stylesheet" href="../assets/mock.css" />
+  </head>
+  <body data-page-type="treatment_diary">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="dmed-logo">
+        <div class="dmed-logo-icon">✦</div>
+        <div><div class="dmed-logo-text">Damu.AI</div>
+        <div class="app-version">Browser AI-agent · v1.0</div></div>
+      </div>
+      <div class="user-block">
+        <div>
+          <div class="user-name">САРЕНОВА БОТАКОЗ МАКСАТОВНА</div>
+          <div class="user-position">Неврология детская (Невропатолог детский)</div>
+        </div>
+        <span class="caret-icon">▾</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="standalone-back">
+        <a href="./patient-card.html">← К карточке пациента</a>
+        <h1>Дневниковые записи</h1>
+        <span class="patient-meta">ДӘУРЕНҚЫЗЫ ТОМИРИС · №565</span>
+      </div>
+
+      <!-- New diary entry form -->
+      <div class="panel">
+        <div class="panel-heading">
+          <div class="panel-title">Новая дневниковая запись</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="row mb-3">
+            <div class="col-6">
+              <div class="form-group">
+                <label for="dtRegDateTime">Дата и время записи</label>
+                <input id="dtRegDateTime" class="form-control" type="datetime-local"
+                       value="2026-04-17T15:07" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Health indicators -->
+          <div class="health-indicators-panel">
+            <h6>Показатели здоровья</h6>
+            <div class="health-indicators-grid">
+              <div class="hi-item">
+                <label>Темп. (°C)</label>
+                <input id="ntbTemperature" type="number" step="0.1" min="34" max="42" placeholder="36.6" />
+              </div>
+              <div class="hi-item">
+                <label>Пульс</label>
+                <input id="ntbPulse" type="number" min="40" max="200" placeholder="76" />
+              </div>
+              <div class="hi-item">
+                <label>АД сист.</label>
+                <input id="ntbTopPressure" type="number" min="60" max="250" placeholder="120" />
+              </div>
+              <div class="hi-item">
+                <label>АД диаст.</label>
+                <input id="ntbBottomPressure" type="number" min="40" max="150" placeholder="80" />
+              </div>
+              <div class="hi-item">
+                <label>ЧДД</label>
+                <input id="ntbBreath" type="number" min="8" max="60" placeholder="18" />
+              </div>
+              <div class="hi-item">
+                <label>SpO2 (%)</label>
+                <input id="ntbSaturation" type="number" min="50" max="100" placeholder="98" />
+              </div>
+              <div class="hi-item">
+                <label>Вес (кг)</label>
+                <input id="ntbWeight" type="number" step="0.1" min="1" max="300" placeholder="42.0" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="diary-note">Запись дневника</label>
+            <textarea id="diary-note" name="diaryNote" data-field="diary-note"
+                      class="form-control" style="min-height:150px;"
+                      placeholder="Состояние пациента за сутки. Динамика. Жалобы. Объективный статус. Назначения."></textarea>
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn primary" data-action="add-diary-note">Добавить запись</button>
+            <button class="btn ghost" data-action="save-form" data-toast-target="Дневник">Сохранить</button>
+          </div>
+
+          <p id="diary-preview" class="small-note mt-2">Записей пока нет.</p>
+
+        </div>
+      </div>
+
+      <!-- Previous diary entries -->
+      <div class="panel">
+        <div class="panel-heading">
+          <div class="panel-title">История дневниковых записей</div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата и время</th>
+                <th>Т°</th>
+                <th>Пульс</th>
+                <th>АД</th>
+                <th>Запись</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>17.04.2026 15:07</td>
+                <td>36.8</td>
+                <td>82</td>
+                <td>110/70</td>
+                <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  Состояние средней тяжести. Жалобы на головную боль умеренной интенсивности...
+                </td>
+                <td><button class="btn ghost btn-sm">Просмотр</button></td>
+              </tr>
+              <tr>
+                <td>16.04.2026 08:30</td>
+                <td>37.0</td>
+                <td>80</td>
+                <td>105/65</td>
+                <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  Состояние удовлетворительное. Самочувствие улучшилось по сравнению с предыдущим днём...
+                </td>
+                <td><button class="btn ghost btn-sm">Просмотр</button></td>
+              </tr>
+              <tr>
+                <td>15.04.2026 09:00</td>
+                <td>37.2</td>
+                <td>86</td>
+                <td>108/68</td>
+                <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  Первый день стационарного лечения. Состояние средней тяжести. Активных жалоб не предъявляет...
+                </td>
+                <td><button class="btn ghost btn-sm">Просмотр</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <script src="../assets/mock.js"></script>
+  </body>
+</html>

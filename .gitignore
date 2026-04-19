@@ -1,0 +1,20 @@
+node_modules/
+
+# Build artifacts
+dist/
+apps/*/dist/
+
+# Env and local secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local IDE and agent artifacts
+.claude/
