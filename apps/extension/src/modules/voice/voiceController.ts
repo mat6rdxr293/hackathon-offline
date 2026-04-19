@@ -112,13 +112,6 @@ export class VoiceController {
       return;
     }
 
-    const permissionState = await this.getMicrophonePermissionState();
-    if (permissionState === 'denied') {
-      this.handleMicrophoneDenied();
-      this.active = false;
-      return;
-    }
-
     this.stream = await this.requestMicrophoneAccess(true);
     if (!this.stream) {
       this.active = false;
@@ -177,19 +170,6 @@ export class VoiceController {
           this.callbacks.onError(msg);
         }
       }
-      return null;
-    }
-  }
-
-  private async getMicrophonePermissionState(): Promise<PermissionState | null> {
-    if (!navigator.permissions?.query) {
-      return null;
-    }
-
-    try {
-      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      return status.state;
-    } catch {
       return null;
     }
   }
